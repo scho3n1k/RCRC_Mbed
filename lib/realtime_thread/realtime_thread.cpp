@@ -29,20 +29,46 @@ realtime_thread::~realtime_thread() {}
 void realtime_thread::loop(void)
 {
     float time{0.0f}, w{0.0f}, y1{0.0f}, y2{0.0f}, u(0.0f), exc(0.0f);
+    float r{0.0f}, e{0.0f}, k_p{4.0f};
+
+    enum class Mode {
+            TIME,
+            CONTROLLER
+        };
+    
+    // Edit to choose the mode
+    Mode mode = Mode::CONTROLLER;
 
     while (true) {
         ThisThread::flags_wait_any(m_ThreadFlag);
         time = 1e-6f * (float)(duration_cast<microseconds>(m_Timer.elapsed_time()).count());
         // --------------------- THE LOOP ---------------------
-
-        u = myDataLogger.get_set_value(time); // get set values from the GUI
-
+     
         y1 = m_IO_handler->read_ain1(); // read 1st voltage
         y2 = m_IO_handler->read_ain2(); // read 2nd voltage
+        exc = myGPA.update(exc, y2);
+        //r = myDataLogger.get_set_value(time); // get set values from the GUI
+        r = exc;
 
-        m_IO_handler->write_aout(u); // write to analog output
-
-        myDataLogger.write_to_log(time, u, y1, y2, 0.0f, 0.0f, 0.0f);
+        switch (mode)
+            {
+                case Mode::TIME:
+                    u = r; // get set values from the GUI
+                    
+                    break;
+                case Mode::CONTROLLER:
+                    e  = r - y2;
+                    u = e * k_p;
+                    if(1) {
+                        u = saturate(u, -1, 1);
+                    }
+                    break;
+                default:
+                    // optional safety fallback
+                    break;
+            }
+        m_IO_handler->write_aout(u);
+        myDataLogger.write_to_log(time, u, y1, y2, r, e, 0.0f); // return value actually corresponds to exc(k+1)
     }
 }
 
