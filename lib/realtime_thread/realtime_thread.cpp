@@ -37,14 +37,22 @@ void realtime_thread::loop(void)
 
     // --- P2, AUFGABE 1.4 ---
     // variables for state feedback controller
-
+    Matrix<float, 1, 2> K(-0.791000000f, 2.230840500f);
+    Matrix<float, 2, 1> x(0.0f, 0.0f);
 
     // --- P2, AUFGABE 1.5 ---
     // feedforward term for state feedback controller
+    //Matrix<float, 1, 2> K(1.418000000f, 7.341362000f);
+    const float V = 2.4398f;
+    //const float V = 9.7594f;
 
 
     // --- P2, AUFGABE 2.5 ---
     // observer and variables for observer
+    observer rcrc_observer(m_Ts);
+    Matrix<float, 2, 1> xhat(0.0f, 0.0f);
+
+
 
 
     while (true) {
@@ -65,21 +73,38 @@ void realtime_thread::loop(void)
 
         // --- P1, AUFGABE 1.12 ---
         // implement a simple P controller with gain = 4.0f
-        u = 4.0f * (w - y2);          // simple P controller, gain = 4.0f
-        u = saturate(u, -1.0f, 1.0f); // limit the setvalue to +-1
-        m_IO_handler->write_aout(u);  // write to analog output
-        myDataLogger.write_to_log(time, w, y1, y2, u, 0.0f, 0.0f);
+        //u = 4.0f * (w - y2);          // simple P controller, gain = 4.0f
+        //u = saturate(u, -1.0f, 1.0f); // limit the setvalue to +-1
+        //m_IO_handler->write_aout(u);  // write to analog output
+        //myDataLogger.write_to_log(time, w, y1, y2, u, 0.0f, 0.0f);
 
         // --- P2, AUFGABE 1.4 ---
         // implement a state feedback controller with state vector x = (y1, y2)^T, gain K
 
+        //x << y1, y2;
+        //u = w - K*x;
+        //u = saturate(u, -1.0f, 1.0f);
+        //m_IO_handler->write_aout(u);
+        //myDataLogger.write_to_log(time, w, y1, y2, u, 0.0f, 0.0f);
 
         // --- P2, AUFGABE 1.5 ---
         // implement a state feedback controller with state vector x = (y1, y2)^T, gain K and feedforward term V
+        x << y1, y2;
+        //u = w*V - K*x;
+        //u = saturate(u, -1.0f, 1.0f);
+        //m_IO_handler->write_aout(u);
+        //myDataLogger.write_to_log(time, w, y1, y2, u, 0.0f, 0.0f);
 
 
         // --- P2, AUFGABE 2.5 & 2.6 ---
         // implement an observer based state feedback controller
+
+        rcrc_observer.do_step(u, y2); // calculate one step of the observer
+        xhat = rcrc_observer.get_x_obsv(); // get the observed states
+        u = w*V - K*xhat;
+        u = saturate(u, -1.0f, 1.0f);
+        m_IO_handler->write_aout(u);
+        myDataLogger.write_to_log(time, w, y1, y2, u, xhat(0), xhat(1));
 
 
         // --- P1, AUFGABE 1.8 ---
